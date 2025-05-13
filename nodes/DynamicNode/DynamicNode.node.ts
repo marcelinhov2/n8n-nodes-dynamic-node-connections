@@ -38,7 +38,6 @@ export class DynamicNode implements INodeType {
 
     // 2) Get the user-provided node JSON (string or object)
     const rawParam = this.getNodeParameter('nodeJson', 0) as any;
-    // Accept either a true JSON object or a JSON string
     let raw: any;
     if (typeof rawParam === 'string') {
       try {
@@ -54,29 +53,29 @@ export class DynamicNode implements INodeType {
     }
     if (typeof raw !== 'object' || raw === null) {
       throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
-    } {
-      throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
     }
 
     // 3) Clone the sub-workflow template
     const template = JSON.parse(JSON.stringify(subWorkflowTemplate)) as any;
 
-    // 4) Make sure the JSON includes a name
+    // 4) Ensure the JSON includes a name
     if (!raw.name) {
       throw new NodeOperationError(this.getNode(), 'Your JSON must include a `name` field');
     }
+
     // 5) Inject the node definition
     template.nodes.push(raw);
-    // 6) Wire Start -> your node
+
+    // 6) Wire Start → your node
     template.connections.Start.main[0][0].node = raw.name;
 
     // 7) Execute the mini-workflow
-    const executionResult = await this.executeWorkflow(
+    const executionResult: any = await this.executeWorkflow(
       { code: template },
       items,
     );
 
-    // 8) Normalize the result: either it's an array or { data }
+    // 8) Normalize the result: array or { data }
     let outputData: INodeExecutionData[][];
     if (Array.isArray(executionResult)) {
       outputData = executionResult;
@@ -84,8 +83,7 @@ export class DynamicNode implements INodeType {
       outputData = (executionResult as any).data;
     }
 
-    // 9) Prepare and return: unwrap the first output port
-    const firstPortItems = outputData[0] || [];
-    return this.prepareOutputData(firstPortItems);
+    // 9) Return items from the first output port
+    return this.prepareOutputData(outputData[0] || []);
   }
 }
