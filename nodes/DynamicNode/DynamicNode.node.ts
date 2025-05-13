@@ -69,31 +69,26 @@ export class DynamicNode implements INodeType {
     // 6) Wire Start → your node
     template.connections.Start.main[0][0].node = raw.name;
 
-    // 7) Execute the mini-workflow, but return the RAW node’s output (not Start)
+    // 7) Execute the mini‐workflow, waiting for every page…
     const workflowProxy = this.getWorkflowDataProxy(0);
     const executionResult: any = await this.executeWorkflow(
-      { code: template },  // your mini‐workflow
+      { code: template },  // your one‐node sub‐workflow
       items,               // incoming items
-      undefined,           // no pre-existing runData
+      undefined,           // no prior runData
       {
         parentExecution: {
           executionId: workflowProxy.$execution.id,
           workflowId:  workflowProxy.$workflow.id,
         },
-        doNotWaitToFinish: false,  // wait for pagination to finish
-        destinationNode: raw.name, // ← return this node’s output, not Start
+        doNotWaitToFinish: false,  // ← crucial: wait for pagination to finish
       },
     );
 
-    // 8) Normalize the result: array or { data }
-    let outputData: INodeExecutionData[][];
-    if (Array.isArray(executionResult)) {
-      outputData = executionResult;
-    } else {
-      outputData = (executionResult as any).data;
-    }
+    // 8) Pull out just the runData for the node you injected
+    const allRunData = (executionResult as any).runData;
+    const nodeRuns = allRunData?.[raw.name] as INodeExecutionData[][];
 
-    // 9) Return items from the first output port
-    return this.prepareOutputData(outputData[0] || []);
+    // 9) Return its first output port
+    return this.prepareOutputData(nodeRuns?.[0] || []);
   }
 }
