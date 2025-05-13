@@ -1,25 +1,134 @@
 ![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
 
-# n8n-nodes-dynamic-node
+# n8n Dynamic Node
 
-A dynamic n8n node wrapper that can execute any node JSON by feeding it at runtime.
+**`n8n-nodes-dynamic-node`** lets you inject and execute *any* standard n8n node at runtime by pasting its workflow‑export JSON into a single wrapper node.
 
-## Prerequisites
+---
 
-You need the following installed on your development machine:
+## Installation
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  pnpm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+### Community Nodes (Recommended)
 
-## More information
+For users on n8n v0.187+, your instance owner can install this node from [Community Nodes](https://docs.n8n.io/integrations/community-nodes/installation/).
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+1. Go to **Settings > Community Nodes**.
+2. Select **Install**.
+3. Enter `n8n-nodes-dynamic-node` in **Enter npm package name**.
+4. Agree to the [risks](https://docs.n8n.io/integrations/community-nodes/risks/) of using community nodes: select **I understand the risks of installing unverified code from a public source**.
+5. Select **Install**.
+
+After installing the node, you can use it like any other node. n8n displays the node in search results in the **Nodes** panel.
+
+### Manual
+
+1. In your n8n instance directory, install from npm:
+
+   ```bash
+   npm install n8n-nodes-dynamic-node --save
+   ```
+2. Restart n8n.
+3. You’ll now see **Dynamic Node** under **Transform** in the node picker.
+
+For Docker-based deployments, add the following line before the font installation command in your [n8n Dockerfile](https://github.com/n8n-io/n8n/blob/master/docker/images/n8n/Dockerfile):
+
+`RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-dynamic-node`
+
+---
+
+## Usage
+
+1. **Wire up** Dynamic Node: connect any upstream node whose items you want to pass through.
+
+2. **Switch the `Node JSON` field into *Expression* mode** (click **Fixed** → **Expression**).
+
+3. **Paste your exported‑node JSON** into the editor. For example, a simple Graph API call:
+
+   ```json
+   {
+     "parameters": {
+       "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.id_msft }}?$select=accountEnabled,userPrincipalName,id",
+       "authentication": "genericCredentialType",
+       "genericAuthType": "oAuth2Api",
+       "options": {}
+     },
+     "type": "n8n-nodes-base.httpRequest",
+     "typeVersion": 4.2,
+     "position": [460, -520],
+     "id": "fetch-enta-user-enabled-status-dynamic",
+     "name": "Fetch Current Azure Status",
+     "credentials": {
+       "oAuth2Api": {
+         "id": "{{ $json.credential_id }}",
+         "name": "{{ $json.credential_name }}"
+       }
+     },
+     "onError": "continueRegularOutput"
+   }
+   ```
+
+4. **Click *Test step***. The node will:
+
+   * Clone an internal **Start → YOUR NODE** mini‑workflow.
+   * Evaluate any `={{…}}` expressions (`$json`, `$response`, etc.).
+   * Execute the underlying node with your credentials and input items.
+   * Return its output as the Dynamic Node’s own output.
+
+---
+
+## Pagination Example
+
+For more complex HTTP requests with pagination, your JSON must match the built‑in node’s option schema. Example:
+
+```json
+{
+  "parameters": {
+    "url": "=https://graph.microsoft.com/beta/users?$filter=UserType eq 'Member'&$top=999",
+    "authentication": "genericCredentialType",
+    "genericAuthType": "oAuth2Api",
+    "options": {
+      "pagination": {
+        "pagination": {
+          "paginationMode": "responseContainsNextURL",
+          "nextURL": "={{ $response.body['@odata.nextLink'] }}",
+          "paginationCompleteWhen": "other",
+          "completeExpression": "={{ !$response.body['@odata.nextLink'] }}",
+          "limitPagesFetched": true,
+          "maxRequests": 15,
+          "requestInterval": 10
+        }
+      },
+      "timeout": 45000
+    }
+  },
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.2,
+  "position": [460, -520],
+  "id": "fetch-enta-users-dynamic",
+  "name": "Fetch Entra Users",
+  "credentials": {
+    "oAuth2Api": {
+      "id": "{{ $json.credential_id }}",
+      "name": "{{ $json.credential_name }}"
+    }
+  },
+  "onError": "continueRegularOutput"
+}
+```
+
+---
+
+## Tips & Troubleshooting
+
+* Always use **Expression mode** when your JSON contains `={{…}}` placeholders.
+* Ensure your pasted JSON is a **true object** (no wrapping quotes).
+* Double‑check that your exported node JSON includes a unique `name` field.
+* If you see **“Node JSON must be an object”**, switch to Expression mode and remove stray quotes.
 
 ## License
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+[MIT](https://github.com/drowl87/n8n-nodes-dynamic-node/blob/master/LICENSE.md)
+
+---
+
+Happy automating with the world’s first **Dynamic Node** for n8n! 🚀

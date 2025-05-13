@@ -70,9 +70,19 @@ export class DynamicNode implements INodeType {
     template.connections.Start.main[0][0].node = raw.name;
 
     // 7) Execute the mini-workflow
+    const workflowProxy = this.getWorkflowDataProxy(0);
     const executionResult: any = await this.executeWorkflow(
-      { code: template },
-      items,
+      { code: template },  // your mini-workflow JSON
+      items,               // incoming items
+      undefined,           // no pre-existing runData
+      {
+        parentExecution: {
+          // tie it back to the parent so expressions like $response update correctly
+          executionId: workflowProxy.$execution.id,
+          workflowId:  workflowProxy.$workflow.id,
+        },
+        doNotWaitToFinish: false,  // crucial: wait for all pagination rounds
+      },
     );
 
     // 8) Normalize the result: array or { data }
