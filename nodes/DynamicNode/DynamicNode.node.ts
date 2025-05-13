@@ -36,9 +36,25 @@ export class DynamicNode implements INodeType {
     // 1) Pull in the incoming items
     const items = this.getInputData();
 
-    // 2) Get the user-provided node JSON
-    const raw = this.getNodeParameter('nodeJson', 0) as any;
-    if (typeof raw !== 'object') {
+    // 2) Get the user-provided node JSON (string or object)
+    const rawParam = this.getNodeParameter('nodeJson', 0) as any;
+    // Accept either a true JSON object or a JSON string
+    let raw: any;
+    if (typeof rawParam === 'string') {
+      try {
+        raw = JSON.parse(rawParam);
+      } catch {
+        throw new NodeOperationError(
+          this.getNode(),
+          'Node JSON must be a valid JSON object or a parseable JSON string',
+        );
+      }
+    } else {
+      raw = rawParam;
+    }
+    if (typeof raw !== 'object' || raw === null) {
+      throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
+    } {
       throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
     }
 
