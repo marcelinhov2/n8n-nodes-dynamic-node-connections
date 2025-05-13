@@ -18,7 +18,7 @@ export class DynamicNode implements INodeType {
     group: ['transform'],
     version: 1,
     description: 'Dynamically execute any node JSON within your workflow',
-    defaults: { name: 'Dynamic Node', color: '#00BB00' },
+    defaults: { name: 'Dynamic Node' },
     inputs: ['main'] as NodeConnectionType[],
     outputs: ['main'] as NodeConnectionType[],
     properties: [
