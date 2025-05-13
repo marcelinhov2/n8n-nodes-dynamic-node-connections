@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-dynamic-node",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A dynamic n8n node wrapper that can execute any node JSON by feeding it at runtime.",
   "keywords": [
     "n8n-community-node-package",
@@ -20,16 +20,14 @@
     "url": "git+https://github.com/drowl87/n8n-nodes-dynamic-node.git"
   },
   "engines": {
-    "node": ">=18.10",
-    "pnpm": ">=9.1"
+    "node": ">=18.10"
   },
-  "packageManager": "pnpm@9.1.4",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && gulp build:icons",
-    "prepare": "npm run build",
-    "test": "echo \"No tests specified\" && exit 0",
-    "publish": "npm publish"
+    "lint": "eslint nodes package.json",
+    "lintfix": "eslint nodes package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
     "dist"
