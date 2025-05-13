@@ -84,11 +84,13 @@ export class DynamicNode implements INodeType {
       },
     );
 
-    // 8) Pull out just the runData for the node you injected
-    const allRunData = (executionResult as any).runData;
-    const nodeRuns = allRunData?.[raw.name] as INodeExecutionData[][];
+    // 8) executionResult.data is already your sub-workflow’s output
+    //    as INodeExecutionData[][] keyed by output ports
+    const returnedData = Array.isArray(executionResult)
+      ? executionResult
+      : (executionResult as any).data as INodeExecutionData[][];
 
-    // 9) Return its first output port
-    return this.prepareOutputData(nodeRuns?.[0] || []);
+    // 9) Just hand it back to n8n
+    return this.prepareOutputData(returnedData);
   }
 }
