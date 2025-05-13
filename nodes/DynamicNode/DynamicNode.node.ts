@@ -4,8 +4,9 @@ import {
   INodeType,
   INodeTypeDescription,
   NodeOperationError,
+  NodeConnectionType,
 } from 'n8n-workflow';
-import { WorkflowExecuteAdditionalData, WorkflowExecute, WorkflowExecuteMode } from 'n8n-core';
+import { WorkflowExecute } from 'n8n-core';
 
 export class DynamicNode implements INodeType {
   description: INodeTypeDescription = {
@@ -14,73 +15,57 @@ export class DynamicNode implements INodeType {
     icon: 'file:dynamicNode.svg',
     group: ['transform'],
     version: 1,
-    description: 'Wraps a full node JSON and executes it dynamically',
     defaults: {
       name: 'Dynamic Node',
       color: '#00BB00',
     },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: ['main'] as NodeConnectionType[],
+    outputs: ['main'] as NodeConnectionType[],
     properties: [
       {
         displayName: 'Node JSON',
         name: 'nodeJson',
         type: 'json',
         default: {},
-        description: 'Full node definition (as in workflow export) to execute',
+        description: 'Full node definition (from a workflow export) to execute',
       },
     ],
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-    // Retrieve the JSON for the node to run
+    // 1) Grab and validate the JSON the user pasted in
     const nodeJson = this.getNodeParameter('nodeJson', 0) as any;
-    if (!nodeJson || typeof nodeJson !== 'object') {
-      throw new NodeOperationError(this.getNode(), 'nodeJson must be a valid JSON object');
+    if (typeof nodeJson !== 'object') {
+      throw new NodeOperationError(this.getNode(), 'The Node JSON must be a valid object');
     }
 
-    // Helper function to recursively evaluate expressions in the JSON
-    const evaluateExpressions = (obj: any): any => {
-      if (typeof obj === 'string' && obj.includes('{{')) {
-        return this.evaluateExpression(obj, 0);
-      } else if (Array.isArray(obj)) {
-        return obj.map(evaluateExpressions);
-      } else if (typeof obj === 'object' && obj !== null) {
-        return Object.fromEntries(
-          Object.entries(obj).map(([key, value]) => [key, evaluateExpressions(value)])
-        );
-      }
-      return obj;
-    };
-
-    // Evaluate all expressions in the node JSON
-    const evaluatedNodeJson = evaluateExpressions(nodeJson);
-
-    // Build a minimal workflow around the single node
+    // 2) Build a one-node workflow around it
     const workflowData = {
       name: 'DynamicWorkflow',
       nodes: [
         {
-          ...evaluatedNodeJson,
-          // Override position so it doesn't overlap
+          ...nodeJson,
           position: [0, 0],
         },
       ],
       connections: {},
     };
 
-    // Prepare the core execution engine
-    const additionalData: WorkflowExecuteAdditionalData = await (this.getWorkflow() as any).getActiveWorkflow();
+    // 3) Pull in whatever “additionalData” n8n-core needs
+    //    (this.getWorkflow() is your current running workflow instance)
+    const additionalData = await (this.getWorkflow() as any).getActiveWorkflow();
     const workflow = new WorkflowExecute(additionalData, workflowData);
 
-    // Execute only the dynamic node
-    const runResult = await workflow.run({
-      runData: {},
-      destinationNode: evaluatedNodeJson.name,
-      mode: 'manual' as WorkflowExecuteMode,
-    });
+    // 4) Run it in “manual” mode
+    const runResult = await workflow.run('manual', {} as any);
 
-    // Return whatever the wrapped node returns
-    return runResult; // INodeExecutionData[][]
+    // 5) Extract just the data for our node by name
+    const nodeName = nodeJson.name;
+    const runData = (runResult as any).runData
+      ?.resultData
+      ?.runData[nodeName] as INodeExecutionData[][];
+
+    // 6) Return that so n8n pipes it downstream
+    return runData || [[]];
   }
 }
