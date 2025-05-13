@@ -70,51 +70,11 @@ For Docker-based deployments, add the following line before the font installatio
 4. **Click *Test step***. The node will:
 
    * Clone an internal **Start → YOUR NODE** mini‑workflow.
-   * Evaluate any `={{…}}` expressions (`$json`, `$response`, etc.).
+   * Evaluate any `{{…}}` expressions (`$json`, etc.).
    * Execute the underlying node with your credentials and input items.
    * Return its output as the Dynamic Node’s own output.
 
----
-
-## Pagination Example
-
-For more complex HTTP requests with pagination, your JSON must match the built‑in node’s option schema. Example:
-
-```json
-{
-  "parameters": {
-    "url": "=https://graph.microsoft.com/beta/users?$filter=UserType eq 'Member'&$top=999",
-    "authentication": "genericCredentialType",
-    "genericAuthType": "oAuth2Api",
-    "options": {
-      "pagination": {
-        "pagination": {
-          "paginationMode": "responseContainsNextURL",
-          "nextURL": "={{ $response.body['@odata.nextLink'] }}",
-          "paginationCompleteWhen": "other",
-          "completeExpression": "={{ !$response.body['@odata.nextLink'] }}",
-          "limitPagesFetched": true,
-          "maxRequests": 15,
-          "requestInterval": 10
-        }
-      },
-      "timeout": 45000
-    }
-  },
-  "type": "n8n-nodes-base.httpRequest",
-  "typeVersion": 4.2,
-  "position": [460, -520],
-  "id": "fetch-enta-users-dynamic",
-  "name": "Fetch Entra Users",
-  "credentials": {
-    "oAuth2Api": {
-      "id": "{{ $json.credential_id }}",
-      "name": "{{ $json.credential_name }}"
-    }
-  },
-  "onError": "continueRegularOutput"
-}
-```
+> **Note:** More complex node options like pagination that rely on elements from `$response` don't seem to work since that isn't handled properly in sub-workflow/child execution contexts.
 
 ---
 
