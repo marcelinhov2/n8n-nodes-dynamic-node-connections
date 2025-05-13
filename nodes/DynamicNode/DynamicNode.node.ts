@@ -90,7 +90,8 @@ export class DynamicNode implements INodeType {
       ? executionResult
       : (executionResult as any).data as INodeExecutionData[][];
 
-    // 9) Just hand it back to n8n
-    return this.prepareOutputData(returnedData);
+    // 9) Return the raw multi-port output directly
+    //    (one port in our template, so n8n will pick that up)
+    return returnedData;
   }
 }
