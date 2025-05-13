@@ -24,9 +24,9 @@
     "pnpm": ">=9.1"
   },
   "packageManager": "pnpm@9.1.4",
-  "main": "dist/DynamicNode.node.js",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && gulp build:icons",
     "prepare": "npm run build",
     "test": "echo \"No tests specified\" && exit 0",
     "publish": "npm publish"
@@ -38,7 +38,7 @@
     "n8nNodesApiVersion": 1,
     "credentials": [],
     "nodes": [
-      "dist/nodes/DynamicNode/DynamicNode.node.js"
+      "dist/*.node.js"
     ]
   },
   "devDependencies": {
@@ -49,9 +49,11 @@
     "prettier": "^3.5.3",
     "typescript": "^5.8.3"
   },
+  "dependencies": {
+    "n8n-workflow": "^1.90.0"
+  },
   "peerDependencies": {
-    "n8n-workflow": "*",
-    "n8n-core": "*"
+    "n8n-workflow": "^1.90.0"
   },
   "bugs": {
     "url": "https://github.com/drowl87/n8n-nodes-dynamic-node/issues"
