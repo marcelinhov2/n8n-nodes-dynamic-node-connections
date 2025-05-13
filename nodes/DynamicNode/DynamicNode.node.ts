@@ -4,6 +4,7 @@ import {
   INodeType,
   INodeTypeDescription,
   NodeOperationError,
+  NodeConnectionType,
 } from 'n8n-workflow';
 
 // JSON import requires "resolveJsonModule" in tsconfig
@@ -16,9 +17,10 @@ export class DynamicNode implements INodeType {
     icon: 'file:dynamicNode.svg',
     group: ['transform'],
     version: 1,
+    description: 'Dynamically execute any node JSON within your workflow',
     defaults: { name: 'Dynamic Node', color: '#00BB00' },
-    inputs: ['main'],
-    outputs: ['main'],
+    inputs: ['main'] as NodeConnectionType[],
+    outputs: ['main'] as NodeConnectionType[],
     properties: [
       {
         displayName: 'Node JSON',
@@ -66,7 +68,8 @@ export class DynamicNode implements INodeType {
       outputData = (executionResult as any).data;
     }
 
-    // 9) Prepare and return
-    return this.prepareOutputData(outputData);
+    // 9) Prepare and return: unwrap the first output port
+    const firstPortItems = outputData[0] || [];
+    return this.prepareOutputData(firstPortItems);
   }
 }
