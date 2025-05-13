@@ -25,8 +25,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && gulp build:icons",
-    "lint": "eslint nodes package.json",
-    "lintfix": "eslint nodes package.json --fix",
+    "lint": "eslint \"nodes/**/*.{ts,js}\" package.json",
+    "lint:fix": "eslint \"nodes/**/*.{ts,js}\" package.json --fix",
     "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
