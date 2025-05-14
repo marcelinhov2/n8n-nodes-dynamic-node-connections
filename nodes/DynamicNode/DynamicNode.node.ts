@@ -6,6 +6,7 @@ import {
   NodeOperationError,
   NodeConnectionType,
 } from 'n8n-workflow';
+import { v4 as uuidv4 } from 'uuid';
 
 // JSON import requires "resolveJsonModule" in tsconfig
 import subWorkflowTemplate from './subWorkflowTemplate.json';
@@ -36,7 +37,7 @@ export class DynamicNode implements INodeType {
     // 1) Pull in the incoming items
     const items = this.getInputData();
 
-    // 2) Get the user-provided node JSON (string or object)
+    // 2) Get the user‐provided node JSON (string or object)
     const rawParam = this.getNodeParameter('nodeJson', 0) as any;
     let raw: any;
     if (typeof rawParam === 'string') {
@@ -55,43 +56,55 @@ export class DynamicNode implements INodeType {
       throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
     }
 
-    // 3) Clone the sub-workflow template
-    const template = JSON.parse(JSON.stringify(subWorkflowTemplate)) as any;
-
-    // 4) Ensure the JSON includes a name
-    if (!raw.name) {
+    // —— UNWRAP & CLEANUP ——
+    // 3) If it’s a full export, pull out the first node
+    let nodeJson: any;
+    if (Array.isArray(raw.nodes) && raw.nodes.length > 0) {
+      nodeJson = raw.nodes[0];
+    } else {
+      nodeJson = raw;
+    }
+    // 4) Remove export-only keys
+    delete nodeJson.connections;
+    delete nodeJson.pinData;
+    delete nodeJson.meta;
+    // 5) Validate it still has a name
+    if (!nodeJson.name) {
       throw new NodeOperationError(this.getNode(), 'Your JSON must include a `name` field');
     }
 
-    // 5) Inject the node definition
-    template.nodes.push(raw);
+    // —— AVOID COLLISIONS ——
+    // 6) Suffix the name and assign a fresh ID
+    nodeJson.name = `${nodeJson.name} - Dynamic Node`;
+    nodeJson.id   = `dynamic-${uuidv4()}`;
 
-    // 6) Wire Start → your node
-    template.connections.Start.main[0][0].node = raw.name;
+    // 7) Clone the sub-workflow template
+    const template = JSON.parse(JSON.stringify(subWorkflowTemplate)) as any;
 
-    // 7) Execute the mini‐workflow, waiting for every page…
+    // 8) Inject & wire
+    template.nodes.push(nodeJson);
+    template.connections.Start.main[0][0].node = nodeJson.name;
+
+    // 9) Execute the mini-workflow to completion
     const workflowProxy = this.getWorkflowDataProxy(0);
     const executionResult: any = await this.executeWorkflow(
-      { code: template },  // your one‐node sub‐workflow
-      items,               // incoming items
-      {},                  // an empty object where run data will live
+      { code: template },
+      items,
+      {},
       {
         parentExecution: {
           executionId: workflowProxy.$execution.id,
           workflowId:  workflowProxy.$workflow.id,
         },
-        doNotWaitToFinish: false,  // ← crucial: wait for pagination to finish
+        doNotWaitToFinish: false,
       },
     );
 
-    // 8) executionResult.data is already your sub-workflow’s output
-    //    as INodeExecutionData[][] keyed by output ports
+    // 10) Grab and return the data
     const returnedData = Array.isArray(executionResult)
       ? executionResult
       : (executionResult as any).data as INodeExecutionData[][];
 
-    // 9) Return the raw multi-port output directly
-    //    (one port in our template, so n8n will pick that up)
     return returnedData;
   }
 }
