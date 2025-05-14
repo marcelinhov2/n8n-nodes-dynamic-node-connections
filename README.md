@@ -38,51 +38,118 @@ For Docker-based deployments, add the following line before the font installatio
 
 ## Usage
 
-1. **Wire up** Dynamic Node: connect any upstream node whose items you want to pass through.
+1. **Copy the node that you want to dynamically modify** by selecting it and pressing `Ctrl + C`.
+
+2. **Wire up** Select `Dynamic Node` from the list of n8n nodes and wire it up to emulate your copied node.
 
 2. **Switch the `Node JSON` field into *Expression* mode** (click **Fixed** → **Expression**).
 
 3. **Paste your exported‑node JSON** into the editor. For example, a simple Graph API call:
 
-   ```json
-   {
-     "parameters": {
-       "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.id_msft }}?$select=accountEnabled,userPrincipalName,id",
-       "authentication": "genericCredentialType",
-       "genericAuthType": "oAuth2Api",
-       "options": {}
-     },
-     "type": "n8n-nodes-base.httpRequest",
-     "typeVersion": 4.2,
-     "position": [460, -520],
-     "id": "fetch-enta-user-enabled-status-dynamic",
-     "name": "Fetch Current Azure Status",
-     "credentials": {
-       "oAuth2Api": {
-         "id": "{{ $json.credential_id }}",
-         "name": "{{ $json.credential_name }}"
-       }
-     },
-     "onError": "continueRegularOutput"
-   }
-   ```
+    - A direct paste might look like this, which the `Dynamic Node` should still be flexible enough to parse without modifying anything:
+      ```json
+      {
+        "nodes": [
+          {
+            "parameters": {
+              "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.id_msft }}?$select=accountEnabled,userPrincipalName,id",
+              "authentication": "genericCredentialType",
+              "genericAuthType": "oAuth2Api",
+              "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+              460,
+              -520
+            ],
+            "id": "550e0f7c-8a0c-462d-948a-89556abe8e5b",
+            "name": "Fetch Current Azure Status",
+            "credentials": {
+              "oAuth2Api": {
+                "id": "q7iDizt7Jxoy2cKo",
+                "name": "Microsoft Graph API Creds"
+              }
+            },
+            "onError": "continueRegularOutput"
+          }
+        ],
+        "connections": {
+          "Fetch Current Azure Status": {
+            "main": [
+              [],
+              []
+            ]
+          }
+        },
+        "pinData": {},
+        "meta": {
+          "templateCredsSetupCompleted": true,
+          "instanceId": "j91cef9ee1e9ee17cc8d16efb7974d807be5ea0cbe8d1adfceb25249ee039v76"
+        }
+      }
+      ```
+
+    - You can also clean it up if desired and flatten the array to just keep the relevant bits:
+      ```json
+      {
+        "parameters": {
+          "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.id_msft }}?$select=accountEnabled,userPrincipalName,id",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "oAuth2Api",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [460, -520],   //note: this line is optional and not needed to run
+        "id": "fetch-enta-user-enabled-status-dynamic",   //note: this line is optional and not needed to run
+        "name": "Fetch Current Azure Status",
+        "credentials": {
+          "oAuth2Api": {
+            "id": "{{ $json.credential_id }}",
+            "name": "{{ $json.credential_name }}"   //note: this line is optional and not needed to run
+          }
+        },
+        "onError": "continueRegularOutput"
+      }
+      ```
+
+    - You can also add more expressions to parameterize the other items and trim it down further to keep it clean:
+      ```json
+      {
+        "parameters": {
+          "url": "{{ $json.dynamic_url }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "oAuth2Api"
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "name": "Fetch Current Azure Status",
+        "credentials": {
+          "oAuth2Api": {
+            "id": "{{ $json.credential_id }}"
+          }
+        }
+      }
+      ```
 
 4. **Click *Test step***. The node will:
 
    * Clone an internal **Start → YOUR NODE** mini‑workflow.
    * Evaluate any `{{…}}` expressions (`$json`, etc.).
    * Execute the underlying node with your credentials and input items.
-   * Return its output as the Dynamic Node’s own output.
+   * Return its output as the `Dynamic Node`’s own output.
 
-> **Note:** More complex node options like pagination that rely on elements from `$response` don't seem to work since that isn't handled properly in sub-workflow/child execution contexts.
+> **Note:** More complex node options like pagination that rely on elements from `$response` don't seem to work since that is handled differently in sub-workflow/child execution contexts. You can still workaround that by doing a loop to manually handle pagination.
 
 ---
 
 ## Tips & Troubleshooting
 
-* Always use **Expression mode** when your JSON contains `={{…}}` placeholders.
+* Always use **Expression mode** when your JSON contains `{{…}}` placeholders.
 * Ensure your pasted JSON is a **true object** (no wrapping quotes).
-* Double‑check that your exported node JSON includes a unique `name` field.
+* Double‑check that your exported node JSON includes a `name` field.
+  * **Note:** The `Dynamic Node` will append on **" - Dynamic Node"** to whatever name you've specified to make sure there aren't name collisions with whatever node you originally copied.
 * If you see **“Node JSON must be an object”**, switch to Expression mode and remove stray quotes.
 
 ## License

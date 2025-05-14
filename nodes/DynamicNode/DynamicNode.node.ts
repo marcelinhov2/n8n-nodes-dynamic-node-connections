@@ -37,7 +37,7 @@ export class DynamicNode implements INodeType {
     // 1) Pull in the incoming items
     const items = this.getInputData();
 
-    // 2) Get the user‐provided node JSON (string or object)
+    // 2) Get the user-provided node JSON (string or object)
     const rawParam = this.getNodeParameter('nodeJson', 0) as any;
     let raw: any;
     if (typeof rawParam === 'string') {
@@ -78,14 +78,26 @@ export class DynamicNode implements INodeType {
     nodeJson.name = `${nodeJson.name} - Dynamic Node`;
     nodeJson.id   = `dynamic-${uuidv4()}`;
 
-    // 7) Clone the sub-workflow template
+    // —— DEFAULT POSITION ——
+    // 7) Ensure a valid position array
+    if (
+      !nodeJson.position ||
+      !Array.isArray(nodeJson.position) ||
+      nodeJson.position.length !== 2 ||
+      typeof nodeJson.position[0] !== 'number' ||
+      typeof nodeJson.position[1] !== 'number'
+    ) {
+      nodeJson.position = [240, 0];
+    }
+
+    // 8) Clone the sub-workflow template
     const template = JSON.parse(JSON.stringify(subWorkflowTemplate)) as any;
 
-    // 8) Inject & wire
+    // 9) Inject & wire
     template.nodes.push(nodeJson);
     template.connections.Start.main[0][0].node = nodeJson.name;
 
-    // 9) Execute the mini-workflow to completion
+    // 10) Execute the mini-workflow to completion
     const workflowProxy = this.getWorkflowDataProxy(0);
     const executionResult: any = await this.executeWorkflow(
       { code: template },
@@ -100,7 +112,7 @@ export class DynamicNode implements INodeType {
       },
     );
 
-    // 10) Grab and return the data
+    // 11) Grab and return the data
     const returnedData = Array.isArray(executionResult)
       ? executionResult
       : (executionResult as any).data as INodeExecutionData[][];
