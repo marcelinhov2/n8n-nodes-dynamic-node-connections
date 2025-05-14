@@ -28,7 +28,7 @@ After installing the node, you can use it like any other node. n8n displays the 
    npm install n8n-nodes-dynamic-node --save
    ```
 2. Restart n8n.
-3. You’ll now see **Dynamic Node** under **Transform** in the node picker.
+3. You’ll now see **Dynamic Node** under **Action in an app** in the node picker.
 
 For Docker-based deployments, add the following line before the font installation command in your [n8n Dockerfile](https://github.com/n8n-io/n8n/blob/master/docker/images/n8n/Dockerfile):
 
@@ -55,26 +55,26 @@ For Docker-based deployments, add the following line before the font installatio
               "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.id_msft }}?$select=accountEnabled,userPrincipalName,id",
               "authentication": "genericCredentialType",
               "genericAuthType": "oAuth2Api",
-              "options": {}
+              "options": {}  // not required to run
             },
             "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.2,
+            "typeVersion": 4.2,  // will default to latest if not specified
             "position": [
               460,
               -520
-            ],
-            "id": "550e0f7c-8a0c-462d-948a-89556abe8e5b",
+            ],  // not required to run
+            "id": "550e0f7c-8a0c-462d-948a-89556abe8e5b",  // not required to run
             "name": "Fetch Current Azure Status",
             "credentials": {
               "oAuth2Api": {
                 "id": "q7iDizt7Jxoy2cKo",
-                "name": "Microsoft Graph API Creds"
+                "name": "Microsoft Graph API Creds"  // not required to run
               }
             },
             "onError": "continueRegularOutput"
           }
         ],
-        "connections": {
+        "connections": {  // everything below here is ignored
           "Fetch Current Azure Status": {
             "main": [
               [],
@@ -90,31 +90,7 @@ For Docker-based deployments, add the following line before the font installatio
       }
       ```
 
-    - You can also clean it up if desired and flatten the array to just keep the relevant bits:
-      ```json
-      {
-        "parameters": {
-          "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.id_msft }}?$select=accountEnabled,userPrincipalName,id",
-          "authentication": "genericCredentialType",
-          "genericAuthType": "oAuth2Api",
-          "options": {}
-        },
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [460, -520],   //note: this line is optional and not needed to run
-        "id": "fetch-enta-user-enabled-status-dynamic",   //note: this line is optional and not needed to run
-        "name": "Fetch Current Azure Status",
-        "credentials": {
-          "oAuth2Api": {
-            "id": "{{ $json.credential_id }}",
-            "name": "{{ $json.credential_name }}"   //note: this line is optional and not needed to run
-          }
-        },
-        "onError": "continueRegularOutput"
-      }
-      ```
-
-    - You can also add more expressions to parameterize the other items and trim it down further to keep it clean:
+    - You can add more expressions to parameterize any dynamic pieces and trim it down to the bare essentials:
       ```json
       {
         "parameters": {
@@ -123,11 +99,10 @@ For Docker-based deployments, add the following line before the font installatio
           "genericAuthType": "oAuth2Api"
         },
         "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
         "name": "Fetch Current Azure Status",
         "credentials": {
           "oAuth2Api": {
-            "id": "{{ $json.credential_id }}"
+            "id": "{{ $json.dynamic_credential }}"
           }
         }
       }
