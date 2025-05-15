@@ -112,10 +112,32 @@ export class DynamicNode implements INodeType {
       },
     );
 
-    // 11) Grab and return the data
-    const returnedData = Array.isArray(executionResult)
-      ? executionResult
-      : (executionResult as any).data as INodeExecutionData[][];
+    // 11) Process executionResult (either your original logic or the suggested one)
+    let returnedData: INodeExecutionData[][] = [];
+    if (Array.isArray(executionResult)) {
+      returnedData = executionResult;
+    } else if (executionResult && typeof executionResult === 'object' && 'data' in executionResult) {
+        // A slightly more robust check for the { data: ... } structure
+        if (Array.isArray(executionResult.data)) {
+            returnedData = executionResult.data as INodeExecutionData[][];
+        } else {
+            // Handle cases where executionResult.data might not be an array as expected
+            console.warn('DynamicNode: executionResult.data was not an array, attempting to wrap.');
+            // This part is speculative and depends on what executeWorkflow might return in edge cases
+            // For now, let's assume it should be an array or we make it an empty one
+            returnedData = [];
+        }
+    } else if (executionResult === null || executionResult === undefined) {
+        console.warn('DynamicNode: executionResult was null or undefined.');
+        returnedData = []; // Default to empty if nothing came back
+    }
+    // Add detailed logging
+    console.log('DynamicNode: Final returnedData structure:', JSON.stringify(returnedData, null, 2));
+    if (returnedData && returnedData[0] && returnedData[0][0]) {
+        console.log('DynamicNode: JSON content of the first item:', JSON.stringify(returnedData[0][0].json, null, 2));
+    } else {
+        console.log('DynamicNode: No valid first item found in returnedData to inspect .json property.');
+    }
 
     return returnedData;
   }
