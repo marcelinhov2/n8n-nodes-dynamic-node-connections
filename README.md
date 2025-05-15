@@ -28,7 +28,7 @@ After installing the node, you can use it like any other node. n8n displays the 
    npm install n8n-nodes-dynamic-node --save
    ```
 2. Restart n8n.
-3. You’ll now see **Dynamic Node** under **Action in an app** in the node picker.
+3. You’ll now see **Dynamic Node** in the node picker.
 
 For Docker-based deployments, add the following line before the font installation command in your [n8n Dockerfile](https://github.com/n8n-io/n8n/blob/master/docker/images/n8n/Dockerfile):
 

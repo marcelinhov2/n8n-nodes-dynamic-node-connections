@@ -112,32 +112,25 @@ export class DynamicNode implements INodeType {
       },
     );
 
-    // 11) Process executionResult (either your original logic or the suggested one)
+    // 11) Process executionResult
     let returnedData: INodeExecutionData[][] = [];
     if (Array.isArray(executionResult)) {
-      returnedData = executionResult;
-    } else if (executionResult && typeof executionResult === 'object' && 'data' in executionResult) {
-        // A slightly more robust check for the { data: ... } structure
-        if (Array.isArray(executionResult.data)) {
-            returnedData = executionResult.data as INodeExecutionData[][];
-        } else {
-            // Handle cases where executionResult.data might not be an array as expected
-            console.warn('DynamicNode: executionResult.data was not an array, attempting to wrap.');
-            // This part is speculative and depends on what executeWorkflow might return in edge cases
-            // For now, let's assume it should be an array or we make it an empty one
-            returnedData = [];
-        }
-    } else if (executionResult === null || executionResult === undefined) {
-        console.warn('DynamicNode: executionResult was null or undefined.');
-        returnedData = []; // Default to empty if nothing came back
-    }
-    // Add detailed logging
-    console.log('DynamicNode: Final returnedData structure:', JSON.stringify(returnedData, null, 2));
-    if (returnedData && returnedData[0] && returnedData[0][0]) {
-        console.log('DynamicNode: JSON content of the first item:', JSON.stringify(returnedData[0][0].json, null, 2));
-    } else {
-        console.log('DynamicNode: No valid first item found in returnedData to inspect .json property.');
-    }
+			returnedData = executionResult as INodeExecutionData[][];
+		} else if (executionResult && typeof executionResult === 'object' && 'data' in executionResult) {
+			if (Array.isArray((executionResult as any).data)) {
+				returnedData = (executionResult as any).data as INodeExecutionData[][];
+			} else {
+				this.logger.warn('DynamicNode: Sub-workflow executionResult.data was not an array. Returning empty data.');
+				returnedData = [];
+			}
+		} else if (executionResult === null || executionResult === undefined) {
+			this.logger.warn('DynamicNode: Sub-workflow executionResult was null or undefined. Returning empty data.');
+			returnedData = [];
+		} else {
+			// Catch-all for other unexpected structures from executeWorkflow
+			this.logger.warn(`DynamicNode: Unexpected structure from sub-workflow execution. Type: ${typeof executionResult}. Returning empty data.`);
+			returnedData = [];
+		}
 
     return returnedData;
   }
