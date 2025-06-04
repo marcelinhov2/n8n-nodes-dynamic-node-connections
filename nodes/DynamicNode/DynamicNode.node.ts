@@ -37,10 +37,10 @@ export class DynamicNode implements INodeType {
       },
       {
         displayName: 'Disable Waiting for Child Workflow(s) to Finish?',
-        name: 'disableWait',
+        name: 'doNotWaitToFinish',
         type: 'boolean',
         default: false,
-        description: 'Advanced: if enabled, parent will not wait for results and outputs may be empty.',
+        description: 'Advanced: If enabled, parent will not wait for results and outputs may be empty.',
       },
     ],
   };
@@ -48,7 +48,7 @@ export class DynamicNode implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const inputItems = this.getInputData();
     const executeIndividually = this.getNodeParameter('executeIndividually', 0) as boolean;
-    const disableWait = this.getNodeParameter('disableWait', 0) as boolean;
+    const doNotWaitToFinish = this.getNodeParameter('doNotWaitToFinish', 0) as boolean;
 
     const rawParam = this.getNodeParameter('nodeJson', 0) as any;
     let raw: any;
@@ -101,11 +101,11 @@ export class DynamicNode implements INodeType {
             executionId: workflowProxy.$execution.id,
             workflowId: workflowProxy.$workflow.id,
           },
-          disableWait,
+          doNotWaitToFinish,
         },
       );
 
-      if (!disableWait && execResult) {
+      if (!doNotWaitToFinish && execResult) {
         if (Array.isArray(execResult)) {
           const flattened = execResult
             .flat()
@@ -133,6 +133,7 @@ export class DynamicNode implements INodeType {
         }
       }
     } else {
+      // Run one sub-workflow with all items
       const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
       const nodeClone = JSON.parse(JSON.stringify(baseNode));
 
@@ -156,11 +157,11 @@ export class DynamicNode implements INodeType {
             executionId: workflowProxy.$execution.id,
             workflowId: workflowProxy.$workflow.id,
           },
-          disableWait,
+          doNotWaitToFinish,
         },
       );
 
-      if (!disableWait && execResult) {
+      if (!doNotWaitToFinish && execResult) {
         if (Array.isArray(execResult)) {
           const flattened = execResult
             .flat()
