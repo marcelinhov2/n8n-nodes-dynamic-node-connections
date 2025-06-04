@@ -29,20 +29,18 @@ export class DynamicNode implements INodeType {
         description: 'Paste in your exported node JSON here',
       },
       {
-        displayName: 'Execute individually per item?',
+        displayName: 'Execute Individually Per Item?',
         name: 'executeIndividually',
         type: 'boolean',
         default: true,
-        description:
-          'If enabled, each input item will run in its own sub-workflow. Disable only if your node can handle bulk items safely.',
+        description: 'Whether to execute the sub-workflow once per input item. If false, all items are passed in together.',
       },
       {
-        displayName: 'Disable waiting for child workflow(s) to finish?',
-        name: 'doNotWaitToFinish',
+        displayName: 'Disable Waiting for Child Workflow(s) to Finish?',
+        name: 'disableWait',
         type: 'boolean',
         default: false,
-        description:
-          '⚠️ Advanced: If enabled, the parent will not wait for results from the sub-workflow. This may break downstream logic or lose returned data.',
+        description: 'Whether to return immediately after starting the sub-workflow. Advanced: if enabled, parent will not wait for results and outputs may be empty.',
       },
     ],
   };
