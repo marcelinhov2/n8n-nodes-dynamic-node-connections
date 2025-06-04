@@ -40,7 +40,7 @@ export class DynamicNode implements INodeType {
         name: 'doNotWaitToFinish',
         type: 'boolean',
         default: false,
-        description: 'Advanced: If enabled, parent will not wait for results and outputs may be empty.',
+        description: 'Whether to return immediately after starting the sub-workflow',
       },
     ],
   };
