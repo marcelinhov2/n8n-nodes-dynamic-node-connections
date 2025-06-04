@@ -128,6 +128,7 @@ export class DynamicNode implements INodeType {
             workflowId: workflowProxy.$workflow.id,
           },
           doNotWaitToFinish,
+          itemIndex: index,
         },
       );
 
@@ -180,6 +181,7 @@ export class DynamicNode implements INodeType {
             workflowId: workflowProxy.$workflow.id,
           },
           doNotWaitToFinish,
+          itemIndex: 0,
         },
       );
 
