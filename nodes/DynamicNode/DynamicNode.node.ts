@@ -40,7 +40,7 @@ export class DynamicNode implements INodeType {
         name: 'doNotWaitToFinish',
         type: 'boolean',
         default: false,
-        description: 'Whether to return immediately after starting the sub-workflow',
+        description: 'Return immediately after triggering the sub-workflow. Advanced: disables result collection.',
       },
     ],
   };
@@ -87,6 +87,32 @@ export class DynamicNode implements INodeType {
         ? baseNode.position
         : [240, 0];
 
+      // Evaluate top-level parameters
+      for (const key of Object.keys(nodeClone.parameters)) {
+        const value = nodeClone.parameters[key];
+        if (typeof value === 'string' && value.includes('{{')) {
+          try {
+            nodeClone.parameters[key] = await this.evaluateExpression(value, item, index);
+          } catch (err) {
+            this.logger.warn(`DynamicNode: Failed to evaluate parameter '${key}': ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      }
+
+      // Evaluate nested body parameters
+      const bodyParams = nodeClone.parameters?.bodyParameters?.parameters;
+      if (Array.isArray(bodyParams)) {
+        for (const param of bodyParams) {
+          if (typeof param.value === 'string' && param.value.includes('{{')) {
+            try {
+              param.value = await this.evaluateExpression(param.value, item, index);
+            } catch (err) {
+              this.logger.warn(`DynamicNode: Failed to evaluate body param '${param.name}': ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        }
+      }
+
       template.nodes.push(nodeClone);
       template.connections.Start.main[0][0].node = nodeClone.name;
 
@@ -95,38 +121,28 @@ export class DynamicNode implements INodeType {
       const execResult = await this.executeWorkflow(
         { code: template },
         [item],
-        {
-          contextData: {
-            $data: item.json,
-            $json: item.json,
-          },
-        },
+        {},
         {
           parentExecution: {
             executionId: workflowProxy.$execution.id,
             workflowId: workflowProxy.$workflow.id,
           },
-          doNotWaitToFinish: doNotWaitToFinish,
-          itemIndex: 0,
-        } as any,
+          doNotWaitToFinish,
+        },
       );
 
       if (!doNotWaitToFinish && execResult) {
-        if (Array.isArray(execResult)) {
-          const flattened = execResult
-            .flat()
-            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
-          allResults.push(...flattened);
-        } else if (
-          typeof execResult === 'object' &&
-          'data' in execResult &&
-          Array.isArray((execResult as any).data)
-        ) {
-          const flattened = (execResult as any).data
-            .flat()
-            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
-          allResults.push(...flattened);
-        }
+        const resultArray = Array.isArray(execResult)
+          ? execResult
+          : Array.isArray((execResult as any).data)
+            ? (execResult as any).data
+            : [];
+
+        allResults.push(
+          ...resultArray.flat().filter((entry: unknown): entry is INodeExecutionData =>
+            entry !== null && typeof entry === 'object',
+          ),
+        );
       }
     };
 
@@ -139,7 +155,7 @@ export class DynamicNode implements INodeType {
         }
       }
     } else {
-      // Run one sub-workflow with all items
+      // One execution for all items (rare)
       const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
       const nodeClone = JSON.parse(JSON.stringify(baseNode));
 
@@ -168,21 +184,17 @@ export class DynamicNode implements INodeType {
       );
 
       if (!doNotWaitToFinish && execResult) {
-        if (Array.isArray(execResult)) {
-          const flattened = execResult
-            .flat()
-            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
-          allResults.push(...flattened);
-        } else if (
-          typeof execResult === 'object' &&
-          'data' in execResult &&
-          Array.isArray((execResult as any).data)
-        ) {
-          const flattened = (execResult as any).data
-            .flat()
-            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
-          allResults.push(...flattened);
-        }
+        const resultArray = Array.isArray(execResult)
+          ? execResult
+          : Array.isArray((execResult as any).data)
+            ? (execResult as any).data
+            : [];
+
+        allResults.push(
+          ...resultArray.flat().filter((entry: unknown): entry is INodeExecutionData =>
+            entry !== null && typeof entry === 'object',
+          ),
+        );
       }
     }
 
