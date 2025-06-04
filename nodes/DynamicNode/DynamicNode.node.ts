@@ -109,9 +109,15 @@ export class DynamicNode implements INodeType {
 
       if (!doNotWaitToFinish && execResult) {
         if (Array.isArray(execResult)) {
-          allResults.push(...execResult.flat());
-        } else if (typeof execResult === 'object' && 'data' in execResult && Array.isArray(execResult.data)) {
-          allResults.push(...execResult.data.flat());
+          const flattened = execResult.flat().filter((item): item is INodeExecutionData => item !== null);
+          allResults.push(...flattened);
+        } else if (
+          typeof execResult === 'object' &&
+          'data' in execResult &&
+          Array.isArray((execResult as any).data)
+        ) {
+          const flattened = (execResult as any).data.flat().filter((item): item is INodeExecutionData => item !== null);
+          allResults.push(...flattened);
         }
       }
     };
