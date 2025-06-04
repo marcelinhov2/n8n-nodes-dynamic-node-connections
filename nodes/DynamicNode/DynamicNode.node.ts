@@ -40,7 +40,7 @@ export class DynamicNode implements INodeType {
         name: 'doNotWaitToFinish',
         type: 'boolean',
         default: false,
-        description: 'Return immediately after triggering the sub-workflow. Advanced: disables result collection.',
+        description: 'Whether to return immediately after starting the sub-workflow. Advanced: disables result collection.',
       },
     ],
   };
