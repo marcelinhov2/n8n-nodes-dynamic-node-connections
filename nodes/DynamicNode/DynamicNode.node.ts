@@ -40,7 +40,7 @@ export class DynamicNode implements INodeType {
         name: 'disableWait',
         type: 'boolean',
         default: false,
-        description: 'Whether to return immediately after starting the sub-workflow. Advanced: if enabled, parent will not wait for results and outputs may be empty.',
+        description: 'Advanced: if enabled, parent will not wait for results and outputs may be empty.',
       },
     ],
   };
@@ -48,7 +48,7 @@ export class DynamicNode implements INodeType {
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const inputItems = this.getInputData();
     const executeIndividually = this.getNodeParameter('executeIndividually', 0) as boolean;
-    const doNotWaitToFinish = this.getNodeParameter('doNotWaitToFinish', 0) as boolean;
+    const disableWait = this.getNodeParameter('disableWait', 0) as boolean;
 
     const rawParam = this.getNodeParameter('nodeJson', 0) as any;
     let raw: any;
@@ -101,15 +101,15 @@ export class DynamicNode implements INodeType {
             executionId: workflowProxy.$execution.id,
             workflowId: workflowProxy.$workflow.id,
           },
-          doNotWaitToFinish,
+          disableWait,
         },
       );
 
-      if (!doNotWaitToFinish && execResult) {
+      if (!disableWait && execResult) {
         if (Array.isArray(execResult)) {
           const flattened = execResult
             .flat()
-            .filter((item: unknown): item is INodeExecutionData => item !== null && typeof item === 'object');
+            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
           allResults.push(...flattened);
         } else if (
           typeof execResult === 'object' &&
@@ -118,7 +118,7 @@ export class DynamicNode implements INodeType {
         ) {
           const flattened = (execResult as any).data
             .flat()
-            .filter((item: unknown): item is INodeExecutionData => item !== null && typeof item === 'object');
+            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
           allResults.push(...flattened);
         }
       }
@@ -129,12 +129,54 @@ export class DynamicNode implements INodeType {
         try {
           await processItem(inputItems[i], i);
         } catch (err) {
-          this.logger.warn(`DynamicNode: Error processing item #${i + 1}: ${err.message}`);
+          this.logger.warn(`DynamicNode: Error processing item #${i + 1}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
     } else {
-      // Run one sub-workflow with all items
-      await processItem({ json: {} }, 0);
+      const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
+      const nodeClone = JSON.parse(JSON.stringify(baseNode));
+
+      nodeClone.name = `${baseNode.name} - Dynamic Node [all]`;
+      nodeClone.id = `dynamic-${uuidv4()}`;
+      nodeClone.position = Array.isArray(baseNode.position) && baseNode.position.length === 2
+        ? baseNode.position
+        : [240, 0];
+
+      template.nodes.push(nodeClone);
+      template.connections.Start.main[0][0].node = nodeClone.name;
+
+      const workflowProxy = this.getWorkflowDataProxy(0);
+
+      const execResult = await this.executeWorkflow(
+        { code: template },
+        inputItems,
+        {},
+        {
+          parentExecution: {
+            executionId: workflowProxy.$execution.id,
+            workflowId: workflowProxy.$workflow.id,
+          },
+          disableWait,
+        },
+      );
+
+      if (!disableWait && execResult) {
+        if (Array.isArray(execResult)) {
+          const flattened = execResult
+            .flat()
+            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
+          allResults.push(...flattened);
+        } else if (
+          typeof execResult === 'object' &&
+          'data' in execResult &&
+          Array.isArray((execResult as any).data)
+        ) {
+          const flattened = (execResult as any).data
+            .flat()
+            .filter((entry: unknown): entry is INodeExecutionData => entry !== null && typeof entry === 'object');
+          allResults.push(...flattened);
+        }
+      }
     }
 
     return [allResults];
