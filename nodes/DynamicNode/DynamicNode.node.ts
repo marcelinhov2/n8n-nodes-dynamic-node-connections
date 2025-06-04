@@ -28,35 +28,31 @@ export class DynamicNode implements INodeType {
         default: {},
         description: 'Paste in your exported node JSON here',
       },
-      {
-        displayName: 'Execute Individually Per Item?',
-        name: 'executeIndividually',
-        type: 'boolean',
-        default: true,
-        description: 'Whether to execute the sub-workflow once per input item. If false, all items are passed in together.',
-      },
-      {
-        displayName: 'Disable Waiting for Child Workflow(s) to Finish?',
-        name: 'doNotWaitToFinish',
-        type: 'boolean',
-        default: false,
-        description: 'Whether to return immediately after starting the sub-workflow. Advanced: disables result collection.',
-      },
     ],
   };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-    const inputItems = this.getInputData();
-    const executeIndividually = this.getNodeParameter('executeIndividually', 0) as boolean;
-    const doNotWaitToFinish = this.getNodeParameter('doNotWaitToFinish', 0) as boolean;
+    const items = this.getInputData();
+
+    // ✅ Enforce: exactly 1 item per call
+    if (items.length !== 1) {
+      throw new NodeOperationError(
+        this.getNode(),
+        `Dynamic Node must be called with exactly 1 item. Received ${items.length}.`,
+      );
+    }
 
     const rawParam = this.getNodeParameter('nodeJson', 0) as any;
     let raw: any;
+
     if (typeof rawParam === 'string') {
       try {
         raw = JSON.parse(rawParam);
       } catch {
-        throw new NodeOperationError(this.getNode(), 'Node JSON must be valid JSON');
+        throw new NodeOperationError(
+          this.getNode(),
+          'Node JSON must be a valid JSON object or a parseable JSON string',
+        );
       }
     } else {
       raw = rawParam;
@@ -66,144 +62,55 @@ export class DynamicNode implements INodeType {
       throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
     }
 
-    const baseNode = Array.isArray(raw.nodes) && raw.nodes.length > 0 ? raw.nodes[0] : raw;
-    delete baseNode.connections;
-    delete baseNode.pinData;
-    delete baseNode.meta;
+    const nodeJson = Array.isArray(raw.nodes) && raw.nodes.length > 0 ? raw.nodes[0] : raw;
 
-    if (!baseNode.name) {
+    delete nodeJson.connections;
+    delete nodeJson.pinData;
+    delete nodeJson.meta;
+
+    if (!nodeJson.name) {
       throw new NodeOperationError(this.getNode(), 'Your JSON must include a `name` field');
     }
 
-    const allResults: INodeExecutionData[] = [];
+    nodeJson.name = `${nodeJson.name} - Dynamic Node`;
+    nodeJson.id = `dynamic-${uuidv4()}`;
+    nodeJson.position = [240, 0];
 
-    const processItem = async (item: INodeExecutionData, index: number): Promise<void> => {
-      const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
-      const nodeClone = JSON.parse(JSON.stringify(baseNode));
+    const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
+    template.nodes.push(nodeJson);
+    template.connections.Start.main[0][0].node = nodeJson.name;
 
-      nodeClone.name = `${baseNode.name} - Dynamic Node [${index + 1}]`;
-      nodeClone.id = `dynamic-${uuidv4()}`;
-      nodeClone.position = Array.isArray(baseNode.position) && baseNode.position.length === 2
-        ? baseNode.position
-        : [240, 0];
+    const workflowProxy = this.getWorkflowDataProxy(0);
 
-      // Evaluate top-level parameters
-      for (const key of Object.keys(nodeClone.parameters)) {
-        const value = nodeClone.parameters[key];
-        if (typeof value === 'string' && value.includes('{{')) {
-          try {
-            nodeClone.parameters[key] = await this.evaluateExpression(value, index);
-          } catch (err) {
-            this.logger.warn(`DynamicNode: Failed to evaluate parameter '${key}': ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
+    const executionResult: any = await this.executeWorkflow(
+      { code: template },
+      items,
+      {},
+      {
+        parentExecution: {
+          executionId: workflowProxy.$execution.id,
+          workflowId: workflowProxy.$workflow.id,
+        },
+        doNotWaitToFinish: false,
+      },
+    );
+
+    let returnedData: INodeExecutionData[][] = [];
+
+    if (Array.isArray(executionResult)) {
+      returnedData = executionResult as INodeExecutionData[][];
+    } else if (executionResult && typeof executionResult === 'object' && 'data' in executionResult) {
+      if (Array.isArray((executionResult as any).data)) {
+        returnedData = (executionResult as any).data as INodeExecutionData[][];
+      } else {
+        this.logger.warn('DynamicNode: Sub-workflow executionResult.data was not an array. Returning empty data.');
       }
-
-      // Evaluate nested body parameters
-      const bodyParams = nodeClone.parameters?.bodyParameters?.parameters;
-      if (Array.isArray(bodyParams)) {
-        for (const param of bodyParams) {
-          if (typeof param.value === 'string' && param.value.includes('{{')) {
-            try {
-              param.value = await this.evaluateExpression(param.value, index);
-            } catch (err) {
-              this.logger.warn(`DynamicNode: Failed to evaluate body param '${param.name}': ${err instanceof Error ? err.message : String(err)}`);
-            }
-          }
-        }
-      }
-
-      template.nodes.push(nodeClone);
-      template.connections.Start.main[0][0].node = nodeClone.name;
-
-      const workflowProxy = this.getWorkflowDataProxy(index);
-
-      const execResult = await this.executeWorkflow(
-        { code: template },
-        [item],
-        {},
-        {
-          parentExecution: {
-            executionId: workflowProxy.$execution.id,
-            workflowId: workflowProxy.$workflow.id,
-          },
-          doNotWaitToFinish,
-          additionalData: {
-            itemIndex: index,
-          },
-        } as any
-      );
-
-      if (!doNotWaitToFinish && execResult) {
-        const resultArray = Array.isArray(execResult)
-          ? execResult
-          : Array.isArray((execResult as any).data)
-            ? (execResult as any).data
-            : [];
-
-        allResults.push(
-          ...resultArray.flat().filter((entry: unknown): entry is INodeExecutionData =>
-            entry !== null && typeof entry === 'object',
-          ),
-        );
-      }
-    };
-
-    if (executeIndividually) {
-      for (let i = 0; i < inputItems.length; i++) {
-        try {
-          await processItem(inputItems[i], i);
-        } catch (err) {
-          this.logger.warn(`DynamicNode: Error processing item #${i + 1}: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
+    } else if (executionResult === null || executionResult === undefined) {
+      this.logger.warn('DynamicNode: Sub-workflow executionResult was null or undefined. Returning empty data.');
     } else {
-      // One execution for all items (rare)
-      const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
-      const nodeClone = JSON.parse(JSON.stringify(baseNode));
-
-      nodeClone.name = `${baseNode.name} - Dynamic Node [all]`;
-      nodeClone.id = `dynamic-${uuidv4()}`;
-      nodeClone.position = Array.isArray(baseNode.position) && baseNode.position.length === 2
-        ? baseNode.position
-        : [240, 0];
-
-      template.nodes.push(nodeClone);
-      template.connections.Start.main[0][0].node = nodeClone.name;
-
-      const workflowProxy = this.getWorkflowDataProxy(0);
-
-      const execResult = await this.executeWorkflow(
-        { code: template },
-        inputItems,
-        {},
-        {
-          parentExecution: {
-            executionId: workflowProxy.$execution.id,
-            workflowId: workflowProxy.$workflow.id,
-          },
-          doNotWaitToFinish,
-          additionalData: {
-            itemIndex: 0,
-          },
-        } as any,
-      );
-
-      if (!doNotWaitToFinish && execResult) {
-        const resultArray = Array.isArray(execResult)
-          ? execResult
-          : Array.isArray((execResult as any).data)
-            ? (execResult as any).data
-            : [];
-
-        allResults.push(
-          ...resultArray.flat().filter((entry: unknown): entry is INodeExecutionData =>
-            entry !== null && typeof entry === 'object',
-          ),
-        );
-      }
+      this.logger.warn(`DynamicNode: Unexpected structure from sub-workflow execution. Type: ${typeof executionResult}. Returning empty data.`);
     }
 
-    return [allResults];
+    return returnedData;
   }
 }
