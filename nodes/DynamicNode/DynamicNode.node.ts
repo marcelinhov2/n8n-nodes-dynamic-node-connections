@@ -92,7 +92,7 @@ export class DynamicNode implements INodeType {
         const value = nodeClone.parameters[key];
         if (typeof value === 'string' && value.includes('{{')) {
           try {
-            nodeClone.parameters[key] = await this.evaluateExpression(value, item, index);
+            nodeClone.parameters[key] = await this.evaluateExpression(value, index);
           } catch (err) {
             this.logger.warn(`DynamicNode: Failed to evaluate parameter '${key}': ${err instanceof Error ? err.message : String(err)}`);
           }
@@ -105,7 +105,7 @@ export class DynamicNode implements INodeType {
         for (const param of bodyParams) {
           if (typeof param.value === 'string' && param.value.includes('{{')) {
             try {
-              param.value = await this.evaluateExpression(param.value, item, index);
+              param.value = await this.evaluateExpression(param.value, index);
             } catch (err) {
               this.logger.warn(`DynamicNode: Failed to evaluate body param '${param.name}': ${err instanceof Error ? err.message : String(err)}`);
             }
