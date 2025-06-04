@@ -108,7 +108,7 @@ export class DynamicNode implements INodeType {
           },
           doNotWaitToFinish: doNotWaitToFinish,
           itemIndex: 0,
-        },
+        } as any,
       );
 
       if (!doNotWaitToFinish && execResult) {
