@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-dynamic-node",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A dynamic n8n node wrapper that can execute any node JSON by feeding it at runtime.",
   "keywords": [
     "n8n-community-node-package",
