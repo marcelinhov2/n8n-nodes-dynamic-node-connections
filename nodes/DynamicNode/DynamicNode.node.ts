@@ -92,8 +92,6 @@ export class DynamicNode implements INodeType {
 
       const workflowProxy = this.getWorkflowDataProxy(index);
 
-      this.logger.info(`DynamicNode executing item ${index + 1} → email: ${item.json?.payload?.email}`);
-      
       const execResult = await this.executeWorkflow(
         { code: template },
         [item],
