@@ -95,7 +95,12 @@ export class DynamicNode implements INodeType {
       const execResult = await this.executeWorkflow(
         { code: template },
         [item],
-        {},
+        {
+          contextData: {
+            $data: item.json,
+            $json: item.json,
+          },
+        },
         {
           parentExecution: {
             executionId: workflowProxy.$execution.id,
