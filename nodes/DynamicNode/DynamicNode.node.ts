@@ -62,23 +62,93 @@ export class DynamicNode implements INodeType {
       throw new NodeOperationError(this.getNode(), 'Node JSON must be an object');
     }
 
-    const nodeJson = Array.isArray(raw.nodes) && raw.nodes.length > 0 ? raw.nodes[0] : raw;
+    // Handle multiple nodes if present
+    const nodes = Array.isArray(raw.nodes) && raw.nodes.length > 0 ? raw.nodes : [raw];
+    const connections = raw.connections || {};
 
-    delete nodeJson.connections;
-    delete nodeJson.pinData;
-    delete nodeJson.meta;
-
-    if (!nodeJson.name) {
-      throw new NodeOperationError(this.getNode(), 'Your JSON must include a `name` field');
-    }
-
-    nodeJson.name = `${nodeJson.name} - Dynamic Node`;
-    nodeJson.id = `dynamic-${uuidv4()}`;
-    nodeJson.position = [240, 0];
+    // Process each node
+    const processedNodes = nodes.map((node, index) => {
+      const processedNode = { ...node };
+      
+      // Remove pinData and meta but preserve connections
+      delete processedNode.pinData;
+      delete processedNode.meta;
+      
+      if (!processedNode.name) {
+        throw new NodeOperationError(this.getNode(), 'Each node must include a `name` field');
+      }
+      
+      // Update node properties for dynamic execution
+      const originalName = processedNode.name;
+      processedNode.name = `${originalName} - Dynamic Node`;
+      processedNode.id = `dynamic-${uuidv4()}`;
+      processedNode.position = [240, index * 200]; // Stack nodes vertically
+      
+      return { processedNode, originalName };
+    });
 
     const template = JSON.parse(JSON.stringify(subWorkflowTemplate));
-    template.nodes.push(nodeJson);
-    template.connections.Start.main[0][0].node = nodeJson.name;
+    
+    // Add all processed nodes to template
+    processedNodes.forEach(({ processedNode }) => {
+      template.nodes.push(processedNode);
+    });
+    
+    // Update connections to use new node names
+    const updatedConnections = {};
+    Object.keys(connections).forEach(nodeName => {
+      const nodeConnections = connections[nodeName];
+      const processedNode = processedNodes.find(pn => pn.originalName === nodeName);
+      
+      if (processedNode) {
+        const newNodeName = processedNode.processedNode.name;
+        updatedConnections[newNodeName] = {};
+        
+        Object.keys(nodeConnections).forEach(outputType => {
+          updatedConnections[newNodeName][outputType] = nodeConnections[outputType].map(connectionArray => 
+            connectionArray.map(connection => {
+              const targetProcessedNode = processedNodes.find(pn => pn.originalName === connection.node);
+              if (targetProcessedNode) {
+                return {
+                  ...connection,
+                  node: targetProcessedNode.processedNode.name
+                };
+              }
+              return connection;
+            })
+          );
+        });
+      }
+    });
+    
+    // Add updated connections to template
+    Object.assign(template.connections, updatedConnections);
+    
+    // Connect Start node to the first processed node
+    if (processedNodes.length > 0) {
+      template.connections.Start.main[0][0].node = processedNodes[0].processedNode.name;
+    }
+    
+    // Ensure the Start node connection is properly set up
+    if (!template.connections.Start || !template.connections.Start.main || !template.connections.Start.main[0]) {
+      template.connections.Start = {
+        main: [
+          [
+            {
+              node: processedNodes[0].processedNode.name,
+              type: "main",
+              index: 0
+            }
+          ]
+        ]
+      };
+    }
+    
+    // Debug logging
+    this.logger.debug(`DynamicNode: Processed ${processedNodes.length} nodes`);
+    this.logger.debug(`DynamicNode: Original connections: ${JSON.stringify(connections)}`);
+    this.logger.debug(`DynamicNode: Updated connections: ${JSON.stringify(updatedConnections)}`);
+    this.logger.debug(`DynamicNode: Final template connections: ${JSON.stringify(template.connections)}`);
 
     const workflowProxy = this.getWorkflowDataProxy(0);
 

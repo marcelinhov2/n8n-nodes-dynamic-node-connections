@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-dynamic-node",
+  "name": "n8n-nodes-dynamic-node-connections",
   "version": "0.3.7",
   "description": "A dynamic n8n node wrapper that can execute any node JSON by feeding it at runtime.",
   "keywords": [
@@ -10,14 +10,14 @@
     "dynamic-node"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/drowl87/n8n-nodes-dynamic-node.git",
+  "homepage": "https://github.com/drowl87/n8n-nodes-dynamic-node-connections.git",
   "author": {
     "name": "David Rowley",
     "email": "david@mygenius.co"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/drowl87/n8n-nodes-dynamic-node.git"
+    "url": "git+https://github.com/drowl87/n8n-nodes-dynamic-node-connections.git"
   },
   "engines": {
     "node": ">=18.10"
@@ -58,7 +58,7 @@
     "n8n-workflow": "^1.90.0"
   },
   "bugs": {
-    "url": "https://github.com/drowl87/n8n-nodes-dynamic-node/issues"
+    "url": "https://github.com/drowl87/n8n-nodes-dynamic-node-connections/issues"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
